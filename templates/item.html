@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+{% block title %}Flasky{% endblock %}
+
+
+
+{% block content %}
+
+
+    <div class="row">
+    <h2> {{ item.title }}</h2>
+    </div>
+    <div class="row">
+    {{ item.description }}
+    </div>
+    {% if session['username'] %}
+    <div class="row">
+    <a href="{{ url_for('item_edit',
+               category_string = item.category.name,
+               item_string = item.title)}}">Edit</a>
+        |
+    <a href="{{ url_for('item_delete',
+               category_string = item.category.name,
+               item_string = item.title)}}">Delete</a>
+    </div>
+    {% endif %}
+{% endblock %}
