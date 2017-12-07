@@ -100,4 +100,6 @@ ENV/
 # mypy
 .mypy_cache/
 
-/usersWithOAuth.db
+usersWithOAuth.db
+paleKale.db
+.idea
