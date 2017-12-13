@@ -81,7 +81,7 @@ def category_items(category_string):
     state = ''.join(random.choice(string.ascii_uppercase + string.digits)
                     for _ in xrange(32))
     login_session['state'] = state
-    items = session.query(Item).filter_by(id=category.id).all()
+    items = session.query(Item).filter_by(category_id=category.id).all()
     return render_template('index.html',
                            STATE=state,
                            title=category.name,
@@ -356,7 +356,7 @@ def category_items_json(category_string):
     get json data for items in single category
     """
     category = session.query(Category).filter_by(name=category_string).first()
-    items = session.query(Item).filter_by(id=category.id).all()
+    items = session.query(Item).filter_by(category_id=category.id).all()
     return jsonify(items=[i.serialize for i in items])
 
 
