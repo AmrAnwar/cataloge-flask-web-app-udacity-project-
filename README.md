@@ -1,5 +1,5 @@
 ## About the project :
-it's flask website for Items Categories and CRUD operations on it .
+it's flask(python 2.7) website for Items Categories and CRUD operations on it .
 
 **To run the Website after cloning the project file , write the following in the terminal**
 -  `sudo pip install virtualenv`
