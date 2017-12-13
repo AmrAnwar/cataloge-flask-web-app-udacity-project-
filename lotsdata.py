@@ -19,7 +19,29 @@ DBSession = sessionmaker(bind=engine)
 session = DBSession()
 
 # Create dummy user
+User1 = User(username="RoboBarista", email="tinnyTim@udacity.com",
+             picture='https://pbs.twimg.com/profile_images/2671170543/18debd694829ed78203a5a36dd364160_400x400.png')
+session.add(User1)
+session.commit()
 
+category_1 = Category(user_id=1, name="Hockey")
+
+session.add(category_1)
+session.commit()
+
+category_1 = Category(user_id=1, name="Football")
+
+session.add(category_1)
+session.commit()
+category_1 = Category(user_id=1, name="BasketBall")
+
+session.add(category_1)
+session.commit()
+
+item_1 = Item(user_id=1, title="test", description="test", category_id=1)
+
+session.add(item_1)
+session.commit()
 
 item_1 = Item(user_id=1, title="test1", description="test1", category_id=1)
 

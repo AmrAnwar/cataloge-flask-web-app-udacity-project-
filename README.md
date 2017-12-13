@@ -12,7 +12,6 @@ it's flask website for Items Categories and CRUD operations on it .
 
 **then just go to this url in your browser : http://localhost:5000/**
 
-
 ## I've used :
 - flask
 - bootstrap , html , css , jquery
