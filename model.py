@@ -1,7 +1,6 @@
 import random
 import string
 
-from itsdangerous import (TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired)
 from passlib.apps import custom_app_context as pwd_context
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy import create_engine
@@ -35,6 +34,14 @@ class Category(Base):
     user_id = Column(Integer, ForeignKey('user.id'))
     user = relationship(User)
 
+    @property
+    def serialize(self):
+        """Return object data in easily serializeable format"""
+        return {
+            'name': self.name,
+            'id': self.id,
+        }
+
 
 class Item(Base):
     __tablename__ = 'item'
@@ -51,13 +58,15 @@ class Item(Base):
     category_id = Column(Integer, ForeignKey('category.id'))
     category = relationship(Category)
 
-    # @property
-    # def serialize(self):
-    #     """Return object data in easily serializeable format"""
-    #     return {
-    #         'title': self.name,
-    #         'id': self.id,
-    #     }
+    @property
+    def serialize(self):
+        """Return object data in easily serializeable format"""
+        return {
+            'title': self.title,
+            'id': self.id,
+            'description': self.description,
+            'category': self.category.serialize
+        }
 
 
 engine = create_engine('sqlite:///usersWithOAuth.db')

@@ -1,30 +1,24 @@
-from model import Base, User
-from flask import Flask, jsonify, request, url_for, abort, g, render_template, flash, redirect
-from sqlalchemy.orm import relationship, sessionmaker, scoped_session
-from sqlalchemy import create_engine
-from flask import session as login_session
-
 import json
-
-# NEW IMPORTS
-from oauth2client.client import flow_from_clientsecrets
-from oauth2client.client import FlowExchangeError
-import httplib2
-from flask import make_response
-import requests
-
-
-from wtforms import StringField, SubmitField, TextField, FieldList, SelectField
-from wtforms.validators import Required
-
-from flask_httpauth import HTTPBasicAuth
-
-from flask_bootstrap import Bootstrap
-from flask_wtf import FlaskForm
-
-from model import Category, Item, Base, User
 import random
 import string
+
+import httplib2
+import requests
+from flask import Flask, jsonify, request, url_for, abort, g, render_template, flash, redirect
+from flask import make_response
+from flask import session as login_session
+from flask_bootstrap import Bootstrap
+from flask_httpauth import HTTPBasicAuth
+from flask_wtf import FlaskForm
+from oauth2client.client import FlowExchangeError
+
+from oauth2client.client import flow_from_clientsecrets
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, scoped_session
+from wtforms import StringField, SubmitField, SelectField
+from wtforms.validators import Required
+
+from model import Category, Item, Base, User
 
 auth = HTTPBasicAuth()
 
@@ -41,7 +35,10 @@ CLIENT_ID = json.loads(
     open('client_secrets.json', 'r').read())['web']['client_id']
 
 
-class NameForm(FlaskForm):
+class ItemForm(FlaskForm):
+    """
+    Form for add and edit items
+    """
     categories = session.query(Category).all()
 
     title = StringField('title', validators=[Required()])
@@ -56,14 +53,17 @@ class NameForm(FlaskForm):
 
 @app.route('/additem', methods=['GET', 'POST'])
 def add_item():
-    form = NameForm()
+    """
+    add new item using ItemForm
+    """
+    form = ItemForm()
     if form.title and form.description.data and form.category.data:
         title = form.title.data
         description = form.description.data
         category_id = form.category.data
         new_item = Item(title=title,
                         description=description,
-                        category_id=category_id,)
+                        category_id=category_id, )
         session.add(new_item)
         session.commit()
         flash("new item was added")
@@ -72,10 +72,12 @@ def add_item():
     return render_template('form.html', form=form)
 
 
-# JSON APIs to view Restaurant Information
 @app.route('/<string:category_string>')
 def category_items(category_string):
-    category = session.query(Category).filter_by(name=category_string).one()
+    """
+    get items for each category
+    """
+    category = session.query(Category).filter_by(name=category_string).first()
     state = ''.join(random.choice(string.ascii_uppercase + string.digits)
                     for _ in xrange(32))
     login_session['state'] = state
@@ -86,9 +88,12 @@ def category_items(category_string):
                            items=items)
 
 
-# JSON APIs to view Restaurant Information
 @app.route('/<string:category_string>/<string:item_string>')
 def item_detail(category_string, item_string):
+    """
+    get single item data and render it
+
+    """
     item = session.query(Item).filter_by(title=item_string).one()
     state = ''.join(random.choice(string.ascii_uppercase + string.digits)
                     for _ in xrange(32))
@@ -99,18 +104,33 @@ def item_detail(category_string, item_string):
                            item=item)
 
 
-@app.route('/<string:category_string>/<string:item_string>/edit')
+@app.route('/<string:category_string>/<string:item_string>/edit', methods=['POST', 'GET', 'PUT'])
 def item_edit(category_string, item_string):
+    """
+    edit item using ItemForm and render it to edit
+    """
+    form = ItemForm()
+    item = session.query(Item).filter_by(title=item_string).one()
     state = ''.join(random.choice(string.ascii_uppercase + string.digits)
                     for _ in xrange(32))
     login_session['state'] = state
+    if request.method == 'POST':
+        # update data
+        new_title = form.title.data
+        if not session.query(Item).filter_by(title=new_title).first() or form.title.data == item.title:
+            item.title = form.title.data
+            item.description = form.description.data
+            category = session.query(Category).filter_by(id=form.category.data).one()
+            item.category = category
+            session.commit()
+            flash("element wad updated")
+        else:
+            flash("their are title with the same name")
 
-    item = session.query(Item).filter_by(title=item_string).one()
-    form = NameForm()
+    form.category.default = item.category.id
+    form.process()
     form.title.data = item.title
     form.description.data = item.description
-    form.category.data = item.category.name
-
 
     return render_template('form.html',
                            STATE=state,
@@ -119,28 +139,31 @@ def item_edit(category_string, item_string):
 
 
 @app.route('/<string:category_string>/<string:item_string>/delete')
-def item_delete(category_string, item_string):
+def item_delete(item_string):
+    """
+    delete item run after Jquery user confirm Form
+    """
     item = session.query(Item).filter_by(title=item_string).one()
-    state = ''.join(random.choice(string.ascii_uppercase + string.digits)
-                    for _ in xrange(32))
-    login_session['state'] = state
-    return render_template('item.html',
-                           STATE=state,
-                           title=item.title,
-                           item=item)
-
+    session.delete(item)
+    session.commit()
+    if item is None:
+        flash("element was not found")
+    flash("element wad deleted")
+    return redirect('/')
 
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-
+    """
+    Home Page get items and render it
+    """
     categories = session.query(Category).all()
     items = session.query(Item).order_by("id desc").limit(10)
     state = ''.join(random.choice(string.ascii_uppercase + string.digits)
                     for _ in xrange(32))
     login_session['state'] = state
     title = None
-    form = NameForm()
+    form = ItemForm()
     if form.validate_on_submit():
         title = form.title.data
     return render_template('index.html',
@@ -266,7 +289,7 @@ def new_user():
         print "existing user"
         user = session.query(User).filter_by(username=username).first()
         return jsonify({
-                           'message': 'user already exists'}), 200  # , {'Location': url_for('get_user', id = user.id, _external = True)}
+            'message': 'user already exists'}), 200  # , {'Location': url_for('get_user', id = user.id, _external = True)}
 
     user = User(username=username)
     user.hash_password(password)
@@ -315,7 +338,38 @@ def gdisconnect():
     return redirect(url_for('index'))
 
 
+# JSON DATA
+
+
+@app.route('/<string:category_string>/<string:item_string>/JSON')
+def item_detail_json(category_string, item_string):
+    """
+    get json data for a single item
+    """
+    item = session.query(Item).filter_by(title=item_string).one()
+    return jsonify(item=[item.serialize])
+
+
+@app.route('/<string:category_string>/JSON')
+def category_items_json(category_string):
+    """
+    get json data for items in single category
+    """
+    category = session.query(Category).filter_by(name=category_string).first()
+    items = session.query(Item).filter_by(id=category.id).all()
+    return jsonify(items=[i.serialize for i in items])
+
+
+@app.route('/JSON')
+def index_json():
+    """
+    render all the items in json format
+    """
+    items = session.query(Item).all()
+    return jsonify(items=[i.serialize for i in items if i.category])
+
+
 if __name__ == '__main__':
     app.debug = True
     app.secret_key = 'szvszvszvsbert4etbRGWYy$^#$'
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='127.0.0.1', port=5000)
