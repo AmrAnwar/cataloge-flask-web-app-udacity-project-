@@ -15,6 +15,7 @@
     </div>
     {% if session['username'] %}
     <div class="row">
+    {% if session['username'] == item.user.username %}
     <a href="{{ url_for('item_edit',
                category_string = item.category.name,
                item_string = item.title)}}">Edit</a>
@@ -22,6 +23,8 @@
     <a class = "delete" href="{{ url_for('item_delete',
                category_string = item.category.name,
                item_string = item.title)}}">Delete</a>
+    {% endif %}
+
     <script>
         $('.delete').click(function() {
     if (confirm("Are you sure you want to delete?"))   {

@@ -1,6 +1,8 @@
 import json
 import random
 import string
+# to create the decorator
+from functools import wraps
 
 import httplib2
 import requests
@@ -11,7 +13,6 @@ from flask_bootstrap import Bootstrap
 from flask_httpauth import HTTPBasicAuth
 from flask_wtf import FlaskForm
 from oauth2client.client import FlowExchangeError
-
 from oauth2client.client import flow_from_clientsecrets
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
@@ -35,6 +36,21 @@ CLIENT_ID = json.loads(
     open('client_secrets.json', 'r').read())['web']['client_id']
 
 
+def login_required(f):
+    """
+    check function tool library
+    """
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not ("username" in login_session):
+            flash("you are not login please login first to add items")
+            return redirect('/')
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
 class ItemForm(FlaskForm):
     """
     Form for add and edit items
@@ -52,18 +68,21 @@ class ItemForm(FlaskForm):
 
 
 @app.route('/additem', methods=['GET', 'POST'])
+@login_required
 def add_item():
     """
     add new item using ItemForm
     """
     form = ItemForm()
+    user = session.query(User).filter_by(username=login_session['username']).one()
     if form.title and form.description.data and form.category.data:
         title = form.title.data
         description = form.description.data
         category_id = form.category.data
         new_item = Item(title=title,
                         description=description,
-                        category_id=category_id, )
+                        category_id=category_id,
+                        user_id=user.id)
         session.add(new_item)
         session.commit()
         flash("new item was added")
@@ -105,6 +124,7 @@ def item_detail(category_string, item_string):
 
 
 @app.route('/<string:category_string>/<string:item_string>/edit', methods=['POST', 'GET', 'PUT'])
+@login_required
 def item_edit(category_string, item_string):
     """
     edit item using ItemForm and render it to edit
@@ -114,7 +134,12 @@ def item_edit(category_string, item_string):
     state = ''.join(random.choice(string.ascii_uppercase + string.digits)
                     for _ in xrange(32))
     login_session['state'] = state
-    if request.method == 'POST':
+
+    if login_session['username'] != item.user.username:
+        flash("you can't edit this item")
+        return redirect("%s/%s" % (category_string, item_string))
+
+    elif request.method == 'POST':
         # update data
         new_title = form.title.data
         if not session.query(Item).filter_by(title=new_title).first() or form.title.data == item.title:
@@ -139,11 +164,15 @@ def item_edit(category_string, item_string):
 
 
 @app.route('/<string:category_string>/<string:item_string>/delete')
-def item_delete(item_string):
+@login_required
+def item_delete(category_string, item_string):
     """
     delete item run after Jquery user confirm Form
     """
     item = session.query(Item).filter_by(title=item_string).one()
+    if login_session['username'] != item.user.username:
+        flash("you can't delete this item")
+        return redirect("%s/%s" % (category_string, item_string))
     session.delete(item)
     session.commit()
     if item is None:
@@ -177,7 +206,6 @@ def index():
 @app.route('/gconnect', methods=['POST'])
 def gconnect():
     # Validate state token
-    print request.args.get('state')
     if request.args.get('state') != login_session['state']:
         response = make_response(json.dumps('Invalid state parameter.'), 401)
         response.headers['Content-Type'] = 'application/json'
@@ -289,14 +317,14 @@ def new_user():
         print "existing user"
         user = session.query(User).filter_by(username=username).first()
         return jsonify({
-            'message': 'user already exists'}), 200  # , {'Location': url_for('get_user', id = user.id, _external = True)}
+            'message': 'user already exists'}), 200
 
     user = User(username=username)
     user.hash_password(password)
     session.add(user)
     session.commit()
     return jsonify(
-        {'username': user.username}), 201  # , {'Location': url_for('get_user', id = user.id, _external = True)}
+        {'username': user.username}), 201
 
 
 @app.route('/api/users/<int:id>')
