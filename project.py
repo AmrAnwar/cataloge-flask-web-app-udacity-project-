@@ -6,7 +6,16 @@ from functools import wraps
 
 import httplib2
 import requests
-from flask import Flask, jsonify, request, url_for, abort, g, render_template, flash, redirect
+from flask import \
+    Flask, \
+    jsonify, \
+    request, \
+    url_for, \
+    abort, \
+    g, \
+    render_template, \
+    flash, \
+    redirect
 from flask import make_response
 from flask import session as login_session
 from flask_bootstrap import Bootstrap
@@ -61,7 +70,6 @@ class ItemForm(FlaskForm):
     description = StringField('description')
     category = SelectField(
         'Category',
-        # choices=[('cpp', 'C++'), ('py', 'Python'), ('text', 'Plain Text')]
         choices=[(category.id, str(category.name)) for category in categories]
     )
     submit = SubmitField('Submit')
@@ -74,7 +82,8 @@ def add_item():
     add new item using ItemForm
     """
     form = ItemForm()
-    user = session.query(User).filter_by(username=login_session['username']).one()
+    username = login_session['username']
+    user = session.query(User).filter_by(username=username).one()
     if form.title and form.description.data and form.category.data:
         title = form.title.data
         description = form.description.data
@@ -123,7 +132,8 @@ def item_detail(category_string, item_string):
                            item=item)
 
 
-@app.route('/<string:category_string>/<string:item_string>/edit', methods=['POST', 'GET', 'PUT'])
+@app.route('/<string:category_string>/<string:item_string>/edit',
+           methods=['POST', 'GET', 'PUT'])
 @login_required
 def item_edit(category_string, item_string):
     """
@@ -142,16 +152,18 @@ def item_edit(category_string, item_string):
     elif request.method == 'POST':
         # update data
         new_title = form.title.data
-        if not session.query(Item).filter_by(title=new_title).first() or form.title.data == item.title:
+        check_item = session.query(Item).filter_by(title=new_title).first()
+        if not check_item or form.title.data == item.title:
             item.title = form.title.data
             item.description = form.description.data
-            category = session.query(Category).filter_by(id=form.category.data).one()
+            category_id = form.category.data
+            category = session.query(Category).filter_by(id=category_id).one()
             item.category = category
             session.commit()
             flash("element wad updated")
         else:
             flash("their are title with the same name")
-
+        return redirect("%s/%s/edit" % (item.category.name, item.title))
     form.category.default = item.category.id
     form.process()
     form.title.data = item.title
@@ -255,7 +267,8 @@ def gconnect():
     stored_access_token = login_session.get('access_token')
     stored_gplus_id = login_session.get('gplus_id')
     if stored_access_token is not None and gplus_id == stored_gplus_id:
-        response = make_response(json.dumps('Current user is already connected.'),
+        error_message = 'Current user is already connected.'
+        response = make_response(json.dumps(error_message),
                                  200)
         response.headers['Content-Type'] = 'application/json'
         return response
@@ -292,7 +305,11 @@ def gconnect():
     output += '!</h1>'
     output += '<img src="'
     output += login_session['picture']
-    output += ' " style = "width: 300px; height: 300px;border-radius: 150px;-webkit-border-radius: 150px;-moz-border-radius: 150px;"> '
+    output += ''' " style = "width: 300px;
+                    height: 300px;
+                    border-radius: 150px;
+                    -webkit-border-radius: 150px;
+                    -moz-border-radius: 150px;"> '''
     flash("you are now logged in as %s" % login_session['username'])
     print "done!"
     return output
@@ -346,13 +363,14 @@ def gdisconnect():
     access_token = login_session.get('access_token')
     if access_token is None:
         print 'Access Token is None'
-        response = make_response(json.dumps('Current user not connected.'), 401)
+        error_message = 'Current user not connected.'
+        response = make_response(json.dumps(error_message), 401)
         response.headers['Content-Type'] = 'application/json'
         return response
     print 'In gdisconnect access token is %s', access_token
     print 'User name is: '
     print login_session['username']
-    url = 'https://accounts.google.com/o/oauth2/revoke?token=%s' % login_session['access_token']
+    url = 'https://accounts.google.com/o/oauth2/revoke?token=%s' % access_token
     h = httplib2.Http()
     result = h.request(url, 'GET')[0]
     print 'result is '
